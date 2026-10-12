@@ -1,0 +1,63 @@
+name: TyreTrack V5 Windows Portable
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-build:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12 x64
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+
+      - name: Install CPU-only PyTorch
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install application and packaging dependencies
+        run: |
+          python -m pip install -r requirements-github.txt
+
+      - name: Validate dependencies and model
+        run: |
+          python -c "import torch, torchvision, cv2, depthai, ultralytics, optree; from PyQt5.QtWidgets import QApplication; from ultralytics import YOLO; print('torch',torch.__version__); print('depthai',depthai.__version__); print('tensor',torch.zeros(1)); print('model task',YOLO('tyre_detector.pt').task)"
+          python -m py_compile TyreTrack_Production_Monitor.py count_line.py hourly_dashboard.py
+          python tyretrack_report_sync_test.py
+
+      - name: Build repaired V5 and smoke-test EXE
+        run: python BUILD_V5_REPAIRED.py
+
+      - name: Upload startup logs (even on failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TyreTrack-V5-build-logs
+          path: |
+            build/**/startup_output.txt
+            build/**/work/TyreTrack/warn-TyreTrack.txt
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload Windows portable release
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TyreTrack-V5-Windows-Portable
+          path: releases/TyreTrack_V5_*/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
