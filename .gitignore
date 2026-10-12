@@ -1,0 +1,17 @@
+.buildvenv/
+.venv/
+venv/
+build/
+dist/
+releases/
+__pycache__/
+*.pyc
+*.spec
+*.db
+*.db-wal
+*.db-shm
+*.log
+email_config.ini
+.env
+private_config/
+reports/
